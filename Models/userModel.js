@@ -23,6 +23,10 @@ const userSchema = new Schema({
   telephone: {
     type: String,
     require: false,
+  }, emailAuth: {
+    type: Boolean,
+    require: true,
+    default:false,
   },
 },{strict: false});
 

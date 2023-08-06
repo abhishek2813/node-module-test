@@ -1,5 +1,7 @@
 const validator = require("validator");
-
+const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const SECRETKEY = "This is for module test";
 /**
  * @function - cleaning the data for registration
  * @param {email : String, username, name, password: Boolean}
@@ -30,4 +32,38 @@ const cleanupAndValidate = ({ email, username, name, password }) => {
   });
 };
 
-module.exports = { cleanupAndValidate };
+const genrateJWTToken = (email) => {
+  const token = jwt.sign(email, SECRETKEY);
+  return token;
+};
+
+const sendVerificationToken = ({ email, token }) => {
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    service: "Gmail",
+    auth: {
+      user: "abhishekp282002@gmail.com",
+      pass: "jnhwxxgmamslvkdh",
+    },
+  });
+
+  const mailOptions = {
+    from: "abhishekp282002@gmail.com",
+    to: email,
+    subject: "Email verification for Book APP",
+    html: `Click <a href='http://localhost:8000/api/${token}'>Here</a>`,
+  };
+
+  transporter.sendMail(mailOptions, function (error, info) {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log("Email sent successfully: " + info.response);
+    }
+  });
+
+  return;
+};
+module.exports = { cleanupAndValidate,genrateJWTToken,sendVerificationToken };

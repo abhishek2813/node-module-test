@@ -1,5 +1,6 @@
 const express = require("express");
-const { cleanupAndValidate } = require("./utils/AuthUtils");
+const jwt = require("jsonwebtoken");
+const { cleanupAndValidate, genrateJWTToken, sendVerificationToken } = require("./utils/AuthUtils");
 const { isAuth } = require("./middlewares/isAuth")
 const UserModel = require("./Models/userModel");
 const mongoose = require("mongoose");
@@ -11,6 +12,7 @@ const mongoDbSession = require("connect-mongodb-session")(session);
 const app = express();
 
 // variable
+const SECRETKEY = "This is for module test";
 const PORT = process.env.PORT || 8000;
 const MONGO_URI = `mongodb+srv://abhishek28:12345@cluster0.u1p3jhx.mongodb.net/module-test?retryWrites=true&w=majority`;
 const store = new mongoDbSession({
@@ -84,6 +86,10 @@ app.post("/register", async (req, res) => {
             });
         }
 
+        //genrate token
+      const token = genrateJWTToken(email);
+      console.log(token);
+
         //password hashing
         const hashedPassword = await bcrypt.hash(password, 10);
         // Insert to database
@@ -95,12 +101,11 @@ app.post("/register", async (req, res) => {
         });
 
         const userDb = await user.save();
-        console.log(userDb);
-        res.send({
-            status: 201,
-            message: "User registered successfully",
-            data: userDb
-        });
+        sendVerificationToken({ token, email });
+    return res.send({
+      status: 200,
+      message: "Please verify your mail id before login",
+    });
     } catch (error) {
         res.send({
             status: 500,
@@ -144,7 +149,13 @@ app.post("/login", async (req, res) => {
         message: "User does not exist, Please register first",
       });
     }
-  
+  // Chcek email is verify or not
+  if(userDb.emailAuth===false){
+    return res.send({
+      status: 400,
+      message: "User Email Not verified",
+    });
+  }
     //compare the password
   
     const isMatch = await bcrypt.compare(password, userDb.password);
@@ -167,6 +178,31 @@ app.post("/login", async (req, res) => {
     
     return res.redirect("/dashboard");
   });
+
+  app.get("/api/:id", async (req, res) => {
+    console.log(req.params);
+    const token = req.params.id;
+  
+    jwt.verify(token, SECRETKEY, async (err, decoded) => {
+      console.log(decoded);
+      try {
+        await UserModel.findOneAndUpdate(
+          { email: decoded },
+          { emailAuth: true }
+        );
+  
+        return res.redirect("/login");
+      } catch (error) {
+        return res.send({
+          status: 500,
+          message: "Email Authentication Failed",
+        });
+      }
+  
+      return res.send(true);
+    });
+  });
+  
   app.get("/dashboard",isAuth,async(req,res)=>{
     const username = req.session.user.username;
     try {
