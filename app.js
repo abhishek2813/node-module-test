@@ -16,236 +16,232 @@ const SECRETKEY = "This is for module test";
 const PORT = process.env.PORT || 8000;
 const MONGO_URI = `mongodb+srv://abhishek28:12345@cluster0.u1p3jhx.mongodb.net/module-test?retryWrites=true&w=majority`;
 const store = new mongoDbSession({
-    uri: MONGO_URI,
-    collection: "sessions",
-  });
-  
+  uri: MONGO_URI,
+  collection: "sessions",
+});
+
 //middlwares
 app.set("view engine", "ejs");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
-    session({
-      secret: "This is our april nodejs class",
-      resave: false,
-      saveUninitialized: false,
-      store: store,
-    })
-  );
-  app.use(express.static("public"));
-  
+  session({
+    secret: "This is our april nodejs class",
+    resave: false,
+    saveUninitialized: false,
+    store: store,
+  })
+);
+app.use(express.static("public"));
+
 //Db connection
 mongoose
-    .connect(MONGO_URI)
-    .then(() => {
-        console.log("MongoDb Connected");
-    })
-    .catch((error) => {
-        console.log("mongo error", error);
-    });
+  .connect(MONGO_URI)
+  .then(() => {
+    console.log("MongoDb Connected");
+  })
+  .catch((error) => {
+    console.log("mongo error", error);
+  });
 
 //Routes
-app.get("/",isAuth, (req, res) => {
-    return res.render("dashboard");
+app.get("/", isAuth, (req, res) => {
+  return res.render("dashboard");
 })
 app.get("/register", (req, resp) => {
-    return resp.render("register");
+  return resp.render("register");
 })
 app.get("/login", (req, resp) => {
-    return resp.render("login");
+  return resp.render("login");
 })
 //Post
 app.post("/register", async (req, res) => {
-    const { name, email, username, password } = req.body;
-    try {
-        await cleanupAndValidate({ email, name, password, username });
-    } catch (error) {
-        return res.send({
-            status: 400,
-            message: "Data Error",
-            error: error,
-        });
-    }
-
-    try {
-        // Check if email exists
-        const userObjEmailExists = await UserModel.findOne({ email });
-        if (userObjEmailExists) {
-            return res.send({
-                status: 400,
-                message: "Email Already Exists",
-            });
-        }
-
-        // Check if username exists
-        const userObjUsernameExists = await UserModel.findOne({ username });
-        if (userObjUsernameExists) {
-            return res.send({
-                status: 400,
-                message: "Username Already Exists",
-            });
-        }
-
-        //genrate token
-      const token = genrateJWTToken(email);
-      console.log(token);
-
-        //password hashing
-        const hashedPassword = await bcrypt.hash(password, 10);
-        // Insert to database
-        const user = new UserModel({
-            name: name,
-            email: email,
-            username: username,
-            password: hashedPassword
-        });
-
-        const userDb = await user.save();
-        sendVerificationToken({ token, email });
+  const { name, email, username, password } = req.body;
+  try {
+    await cleanupAndValidate({ email, name, password, username });
+  } catch (error) {
     return res.send({
-      status: 200,
-      message: "Please verify your mail id before login",
+      status: 400,
+      message: "Data Error",
+      error: error,
     });
-    } catch (error) {
-        res.send({
-            status: 500,
-            message: "Database Error",
-            error: error
-        });
+  }
+
+  try {
+    // Check if email exists
+    const userObjEmailExists = await UserModel.findOne({ email });
+    if (userObjEmailExists) {
+      return res.send({
+        status: 400,
+        message: "Email Already Exists",
+      });
     }
+
+    // Check if username exists
+    const userObjUsernameExists = await UserModel.findOne({ username });
+    if (userObjUsernameExists) {
+      return res.send({
+        status: 400,
+        message: "Username Already Exists",
+      });
+    }
+
+    // Generate token
+    const token = genrateJWTToken(email);
+
+    // Password hashing
+    const hashedPassword = await bcrypt.hash(password, 10);
+    // Insert to database
+    const user = new UserModel({
+      name: name,
+      email: email,
+      username: username,
+      password: hashedPassword
+    });
+
+    const userDb = await user.save();
+    sendVerificationToken({ token, email });
+
     return res.redirect("/login");
+  } catch (error) {
+    res.send({
+      status: 500,
+      message: "Database Error",
+      error: error
+    });
+  }
 });
 
 app.post("/login", async (req, res) => {
-    //console.log(req.body);
-    const { loginId, password } = req.body;
-    //Data validation
-  
-    if (!loginId || !password) {
-      return res.send({
-        status: 400,
-        message: "Missing credentials",
-      });
-    }
-  
-    if (typeof loginId !== "string" || typeof password !== "string") {
-      return res.send({
-        status: 400,
-        message: "Invalid Data Format",
-      });
-    }
-  
-    //find the user obj from loginId
-    let userDb;
-    if (validator.isEmail(loginId)) {
-      userDb = await UserModel.findOne({ email: loginId });
-    } else {
-      userDb = await UserModel.findOne({ username: loginId });
-    }
-    // console.log(userDb);
-    if (!userDb) {
-      return res.send({
-        status: 400,
-        message: "User does not exist, Please register first",
-      });
-    }
+  //console.log(req.body);
+  const { loginId, password } = req.body;
+  //Data validation
+
+  if (!loginId || !password) {
+    return res.send({
+      status: 400,
+      message: "Missing credentials",
+    });
+  }
+
+  if (typeof loginId !== "string" || typeof password !== "string") {
+    return res.send({
+      status: 400,
+      message: "Invalid Data Format",
+    });
+  }
+
+  //find the user obj from loginId
+  let userDb;
+  if (validator.isEmail(loginId)) {
+    userDb = await UserModel.findOne({ email: loginId });
+  } else {
+    userDb = await UserModel.findOne({ username: loginId });
+  }
+  // console.log(userDb);
+  if (!userDb) {
+    return res.send({
+      status: 400,
+      message: "User does not exist, Please register first",
+    });
+  }
   // Chcek email is verify or not
-  if(userDb.emailAuth===false){
+  if (userDb.emailAuth === false) {
     return res.send({
       status: 400,
       message: "User Email Not verified",
     });
   }
-    //compare the password
-  
-    const isMatch = await bcrypt.compare(password, userDb.password);
-   
-    if (!isMatch) {
+  //compare the password
+
+  const isMatch = await bcrypt.compare(password, userDb.password);
+
+  if (!isMatch) {
+    return res.send({
+      status: 400,
+      message: "Password incorrect",
+    });
+  }
+
+  //successfull login
+
+  req.session.isAuth = true;
+  req.session.user = {
+    username: userDb.name,
+    email: userDb.email,
+    userId: userDb._id,
+  };
+
+  return res.redirect("/dashboard");
+});
+
+app.get("/api/:id", async (req, res) => {
+  console.log(req.params);
+  const token = req.params.id;
+
+  jwt.verify(token, SECRETKEY, async (err, decoded) => {
+    console.log(decoded);
+    try {
+      await UserModel.findOneAndUpdate(
+        { email: decoded },
+        { emailAuth: true }
+      );
+
+      return res.redirect("/login");
+    } catch (error) {
       return res.send({
-        status: 400,
-        message: "Password incorrect",
+        status: 500,
+        message: "Email Authentication Failed",
       });
     }
-   
-    //successfull login
 
-    req.session.isAuth = true;
-    req.session.user = {
-      username: userDb.name,
-      email: userDb.email,
-      userId: userDb._id,
-    };
-    
-    return res.redirect("/dashboard");
+    return res.send(true);
   });
+});
 
-  app.get("/api/:id", async (req, res) => {
-    console.log(req.params);
-    const token = req.params.id;
-  
-    jwt.verify(token, SECRETKEY, async (err, decoded) => {
-      console.log(decoded);
-      try {
-        await UserModel.findOneAndUpdate(
-          { email: decoded },
-          { emailAuth: true }
-        );
-  
-        return res.redirect("/login");
-      } catch (error) {
-        return res.send({
-          status: 500,
-          message: "Email Authentication Failed",
-        });
-      }
-  
-      return res.send(true);
+app.get("/dashboard", isAuth, async (req, res) => {
+  const username = req.session.user.username;
+  try {
+    const books = await InventoryModel.find({ username: username });
+    return res.render("dashboard", { data: books })
+  } catch (error) {
+    return res.send(error);
+  }
+
+})
+
+app.post("/logout", isAuth, (req, res) => {
+  req.session.destroy((error) => {
+    if (error) throw error;
+    return res.redirect("/login");
+  });
+});
+
+app.post("/add-book", isAuth, async (req, res) => {
+  const { title, author, price, category } = req.body;
+  //Data validation
+
+  if (!title || !author || !price || !category) {
+    return res.send({
+      status: 400,
+      message: "Missing Book Details",
     });
-  });
-  
-  app.get("/dashboard",isAuth,async(req,res)=>{
-    const username = req.session.user.username;
-    try {
-      const books = await InventoryModel.find({ username: username });
-      return res.render("dashboard",{data: books})
-    } catch (error) {
-      return res.send(error);
-    }
-  
-  })
+  }
 
-  app.post("/logout", isAuth, (req, res) => {
-    req.session.destroy((error) => {
-      if (error) throw error;
-      return res.redirect("/login");
+  if (typeof title !== "string" || typeof author !== "string" || typeof category !== "string") {
+    return res.send({
+      status: 400,
+      message: "Invalid Data Format",
     });
+  }
+  const addBook = new InventoryModel({
+    title: title,
+    author: author,
+    price: price,
+    category: category,
+    username: req.session.user.username
   });
-
-app.post("/add-book",isAuth,async(req,res)=>{
-    const {title,author,price,category}=req.body;
-        //Data validation
-  
-        if (!title || !author || !price ||!category) {
-            return res.send({
-              status: 400,
-              message: "Missing Book Details",
-            });
-          }
-        
-          if (typeof title !== "string" || typeof author !== "string" || typeof category !== "string") {
-            return res.send({
-              status: 400,
-              message: "Invalid Data Format",
-            });
-          }
-        const addBook = new InventoryModel({
-            title:title,
-            author:author,
-            price:price,
-            category:category,
-            username:req.session.user.username
-        });
-          //save in db
+  //save in db
   try {
     const addedBook = await addBook.save();
     console.log(addedBook);
@@ -264,7 +260,7 @@ app.post("/add-book",isAuth,async(req,res)=>{
   }
 
 });
-  app.get("/read-books", isAuth, async (req, res) => {
+app.get("/read-books", isAuth, async (req, res) => {
   //username
   const username = req.session.user.username;
   try {
@@ -275,32 +271,32 @@ app.post("/add-book",isAuth,async(req,res)=>{
   } catch (error) {
     return res.send(error);
   }
-}); 
-app.post("/edit-book",isAuth,async(req,res)=>{
-    const {id,title,author,price,category}=req.body;
-        //Data validation
-  
-        if (!id || !title) { //|| !author || !price ||!category
-            return res.send({
-              status: 400,
-              message: "Missing Book Details",
-            });
-          }
-        
-          if (typeof title !== "string" ) { //|| typeof author !== "string" || typeof category !== "string"
-            return res.send({
-              status: 400,
-              message: "Invalid Data Format",
-            });
-          }
-        //else if (price.length > 0 || price.length > 100) {
-        //     return res.send({
-        //       status: 400,
-        //       message:
-        //         "price can not smaller then 0",
-        //     });
-        //   }
-         //find the todo
+});
+app.post("/edit-book", isAuth, async (req, res) => {
+  const { id, title, author, price, category } = req.body;
+  //Data validation
+
+  if (!id || !title) { //|| !author || !price ||!category
+    return res.send({
+      status: 400,
+      message: "Missing Book Details",
+    });
+  }
+
+  if (typeof title !== "string") { //|| typeof author !== "string" || typeof category !== "string"
+    return res.send({
+      status: 400,
+      message: "Invalid Data Format",
+    });
+  }
+  //else if (price.length > 0 || price.length > 100) {
+  //     return res.send({
+  //       status: 400,
+  //       message:
+  //         "price can not smaller then 0",
+  //     });
+  //   }
+  //find the book
   const bookdetails = await InventoryModel.findOne({ _id: id });
   if (!bookdetails) {
     return res.send({
@@ -316,13 +312,13 @@ app.post("/edit-book",isAuth,async(req,res)=>{
     });
   }
   try {
-    const updateedBook = await InventoryModel.findOneAndUpdate({_id:id},{
-            title:title,
-            author:author,
-            price:price,
-            category:category,
+    const updateedBook = await InventoryModel.findOneAndUpdate({ _id: id }, {
+      title: title,
+      author: author,
+      price: price,
+      category: category,
     });
-  
+
     return res.send({
       status: 201,
       message: "Book Updated successfully",
@@ -338,20 +334,20 @@ app.post("/edit-book",isAuth,async(req,res)=>{
 
 });
 
-app.post("/delete-book",isAuth,async(req,res)=>{
-    const {id}=req.body;
-        //Data validation
-  
-        if (!id) {
-            return res.send({
-              status: 400,
-              message: "Missing Book Id Details",
-            });
-          }
+app.post("/delete-book", isAuth, async (req, res) => {
+  const { id } = req.body;
+  //Data validation
+
+  if (!id) {
+    return res.send({
+      status: 400,
+      message: "Missing Book Id Details",
+    });
+  }
 
   try {
-    const updateedBook = await InventoryModel.findOneAndDelete({_id:id});
-  
+    const updateedBook = await InventoryModel.findOneAndDelete({ _id: id });
+
     return res.send({
       status: 201,
       message: "Book Delete successfully",
@@ -379,6 +375,6 @@ app.get("/read-books", isAuth, async (req, res) => {
   }
 });
 
-app.listen(PORT,()=>{
-    console.log("server is running");
+app.listen(PORT, () => {
+  console.log("server is running");
 })
