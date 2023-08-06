@@ -53,7 +53,7 @@ const sendVerificationToken = ({ email, token }) => {
     from: "abhishekp282002@gmail.com",
     to: email,
     subject: "Email verification for Book APP",
-    html: `Click <a href='https://node-module-test-production-9541.up.railway.app//api/${token}'>Here</a>`,
+    html: `Click <a href='https://node-module-test-production-9541.up.railway.app/api/${token}'>Here</a>`,
   };
 
   transporter.sendMail(mailOptions, function (error, info) {
