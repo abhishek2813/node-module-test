@@ -44,7 +44,8 @@ button {
     }   
 </style>   
 </head>    
-<body>    
+<body>
+   
     <center> <h1> Login Form </h1> </center>   
     <form action='/login' method="POST">  
         <div class="container">   
@@ -53,6 +54,11 @@ button {
             <label for="password">Password : </label>   
             <input type="password" placeholder="Enter Password" name="password" required>  
             <button type="submit">Login</button>   
+            <div class="row">
+                <div class="col-2">
+                    <button class="btn btn-primary"><a href="/register">Register</a></button>
+                </div>
+            </div>
         </div>   
     </form>     
 </body>     
